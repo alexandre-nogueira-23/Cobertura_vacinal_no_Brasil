@@ -1098,5 +1098,5 @@ library(MASS)
 step_mod2 <- stepAIC(mod2, direction = "both", trace = FALSE)
 summary(step_mod2)
 
-
+teste
 #                 ~~~ Fim ~~~
