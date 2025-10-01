@@ -1,4 +1,13 @@
+###########################################################################
+###   Título: Regressão da cobertura vacinal (municípios)               ###
+###########################################################################
 
+# Autor: Alexandre Silva Nogueira
+
+# Objetivo:
+#> Unificar bases de dados (DataSUS, TSE, IBGE etc.) em nível municipal
+#> e estimar modelos de regressão para explicar variação da cobertura
+#> vacinal.
 
 library(pacman)
 p_load(dplyr, basedosdados, bigrquery, glue, tidyr, broom,
@@ -521,7 +530,7 @@ tabela_coberturas_4anos_resumo.2 <- tabela_coberturas_4anos_resumo.1 %>%
 # .--------------------------------------------.
 # |############################################|
 # |##.--------------------------------------.##|
-# |##|  Rodar regressão linear              |##|
+# |##|  Regressão linear: primeira tentativa|##|
 # |##°--------------------------------------°##|
 # |############################################|
 # '--------------------------------------------°
@@ -592,133 +601,6 @@ ggplot(coefs_plot, aes(x = estimate, y = reorder(term, estimate))) +
 # .--------------------------------------------.
 # |############################################|
 # |##.--------------------------------------.##|
-# |##|  Testes de outliers                  |##|
-# |##°--------------------------------------°##|
-# |############################################|
-# '--------------------------------------------°
-
-# Teste de outliers
-influencePlot(mod_ne, id.method="identify")
-
-# ----------------------------
-# 1) MODELO BASE (se já tiver mod_ne, pode pular)
-# ----------------------------
-form <- media_diff_21_15 ~  densidade_demografica +
-  pessoas_por_estabelecimento_saude + faixa_estudos + pct_pretos_pardos + pct_indigenas +
-  pct_0a4 + prop_22_ex + prop_rural + prop_evangelicos + factor(name_region) 
-
-# ----------------------------
-# 2) Identificar observações influentes
-#    (regras comuns: |resíduo studentizado| > 3,
-#     alavancagem .hat > 2p/n, Cook's D > 4/n)
-# ----------------------------
-aug <- augment(mod_ne)  # adiciona .cooksd, .hat, .std.resid
-n <- nobs(mod_ne)
-p <- length(coef(mod_ne))
-
-cut_hat  <- 2 * p / n
-cut_cook <- 4 / n
-
-infl_idx <- aug %>%
-  mutate(row_id = row_number(),
-         flag = abs(.std.resid) > 3 |
-           .hat > cut_hat      |
-           .cooksd > cut_cook) %>%
-  filter(flag) %>%
-  pull(row_id)
-
-cat("Obs. influentes detectadas:", length(infl_idx), "\n")
-if ("id_municipio" %in% names(dados_modelo)) {
-  cat("Primeiras influentes (id_municipio):\n")
-  print(dados_modelo$id_municipio[infl_idx][1:min(10, length(infl_idx))])
-}
-
-# ----------------------------
-# 3) Reestimar SEM influentes
-# ----------------------------
-dados_sens <- dados_modelo[-infl_idx, , drop = FALSE]
-mod_ne_sens <- lm(form, data = dados_sens)
-
-# ----------------------------
-# 4) Comparar coeficientes com erros-robustos (HC3)
-# ----------------------------
-tidy_hc3 <- function(m, label){
-  broom::tidy(m,
-              conf.int = TRUE,
-              conf.level = 0.95,
-              vcov = sandwich::vcovHC(m, type = "HC3")) %>%
-    mutate(model = label)
-}
-
-tab_comp <- bind_rows(
-  tidy_hc3(mod_ne,       "Completo"),
-  tidy_hc3(mod_ne_sens,  "Sem influentes")
-) %>%
-  # tirar o intercepto do gráfico (opcional)
-  filter(term != "(Intercept)")
-
-# Tabela rápida de comparação
-tab_comp %>%
-  select(model, term, estimate, std.error, conf.low, conf.high, p.value) %>%
-  arrange(term, model) -> comparacao_coef
-print(comparacao_coef, n = Inf)
-
-# ----------------------------
-# 5) Gráfico de coeficientes (com IC robustos) comparando os dois modelos
-# ----------------------------
-ggplot(tab_comp,
-       aes(x = estimate, y = term, xmin = conf.low, xmax = conf.high,
-           color = model)) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
-  geom_pointrange(position = position_dodge(width = 0.6)) +
-  labs(title = "Comparação de coeficientes (HC3)",
-       subtitle = "Modelo completo vs. sem observações influentes",
-       x = "Efeito estimado (p.p.)", y = NULL, color = NULL) +
-  theme_minimal(base_size = 12)
-
-# ----------------------------
-# 6) Estatísticas de ajuste para texto do artigo
-# ----------------------------
-# Coefs com EP robusto (HC3)
-tidy_hc3 <- function(m, rotulo){
-  broom::tidy(m, conf.int = TRUE, conf.level = 0.95,
-              vcov = sandwich::vcovHC(m, type = "HC3")) |>
-    dplyr::mutate(Modelo = rotulo)
-}
-
-tab <- dplyr::bind_rows(
-  tidy_hc3(mod_ne, "Completo"),
-  tidy_hc3(mod_ne_sens, "Sem influentes")
-) |>
-  dplyr::select(Modelo, term, estimate, std.error, conf.low, conf.high, p.value) |>
-  dplyr::mutate(dplyr::across(c(estimate, std.error, conf.low, conf.high, p.value), ~round(., 4))) |>
-  dplyr::rename(Variável = term, Estimativa = estimate, `EP (HC3)` = std.error,
-                `IC95% baixo` = conf.low, `IC95% alto` = conf.high, `p-valor` = p.value)
-
-gt_tab <- gt(tab) |>
-  tab_header(
-    title = "Determinantes da variação média da cobertura vacinal (2021–2015)",
-    subtitle = "Erros-padrão robustos (HC3); IC95% entre colunas."
-  ) |>
-  tab_options(table.font.size = px(13))
-gtsave(gt_tab, "tabela_regressao.png")
-
-# ----------------------------
-# 7) Analisando os 600 influentes
-# ----------------------------
-
-# 2) Anexar um ID de linha que bate com dados_modelo e marcar influentes
-dados_infl <- dados_modelo %>%
-  mutate(.row_id = dplyr::row_number()) %>%
-  bind_cols(aug %>% select(.std.resid, .hat, .cooksd)) %>%
-  mutate(influente = abs(.std.resid) > 3 | .hat > cut_hat | .cooksd > cut_cook)
-
-# 3) Filtrar só os influentes (para você inspecionar)
-influentes <- dados_infl %>% filter(influente)
-
-# .--------------------------------------------.
-# |############################################|
-# |##.--------------------------------------.##|
 # |##|  Testes de Multicolineariedade       |##|
 # |##°--------------------------------------°##|
 # |############################################|
@@ -748,7 +630,7 @@ cor.test(dados_modelo_ne$prop_evangelicos, dados_modelo_ne$pct_pretos_pardos,
 # .--------------------------------------------.
 # |############################################|
 # |##.--------------------------------------.##|
-# |##|  Comparando 3 cenários               |##|
+# |##|  Novos modelos: 3 cenários diferentes|##|
 # |##°--------------------------------------°##|
 # |############################################|
 # '--------------------------------------------°

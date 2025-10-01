@@ -1,9 +1,20 @@
+###########################################################################
+###   Título: Base longitudinal de cobertura vacinal (países)           ###
+###########################################################################
+
+# Autor: Alexandre Silva Nogueira
+
+# Objetivo:
+#> Integrar dados do DataSUS e da Base dos Dados para criar uma base
+#> longitudinal de cobertura vacinal a nível de países, com análises
+#> descritivas de tendência temporal.
+
 library(pacman)
 p_load(dplyr, basedosdados, bigrquery, glue, tidyr, broom, sf, geobr, gt)
 
 # Autenticação (ajuste se necessário)
 bq_auth(email = "alexandrepichilinga@gmail.com")
-basedosdados::set_billing_id("hopeful-frame-456219-k5")
+basedosdados::set_billing_id("adicionar ir próprio")
 
 # .--------------------------------------------.
 # |############################################|
