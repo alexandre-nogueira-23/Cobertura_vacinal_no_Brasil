@@ -1,3 +1,5 @@
+
+
 library(pacman)
 p_load(dplyr, basedosdados, bigrquery, glue, tidyr, broom,
        sf, geobr, gt, patchwork, cowplot, gridExtra, ragg, grid,
@@ -16,7 +18,7 @@ options(scipen=999) # Evita aparecerem notações científicas nas tabelas
 
 # Autenticação (ajuste se necessário)
 bq_auth(email = "alexandrepichilinga@gmail.com")
-basedosdados::set_billing_id("hopeful-frame-456219-k5")
+basedosdados::set_billing_id("adicionar id próprio")
 
 # SQL: soma população total e 0–4 anos por município
 sql <- glue("
@@ -1097,6 +1099,6 @@ anova(mod1, mod2)
 library(MASS)
 step_mod2 <- stepAIC(mod2, direction = "both", trace = FALSE)
 summary(step_mod2)
-
-teste
+oi
+teste 
 #                 ~~~ Fim ~~~
