@@ -1,10 +1,10 @@
 ###########################################################################
-###   Título: Base longitudinal de cobertura vacinal (países)           ###
+###   Título: Base longitudinal de cobertura vacinal (município)        ###
 ###########################################################################
 
 # Objetivo:
 #> Integrar dados do DataSUS e da Base dos Dados para criar uma base
-#> longitudinal de cobertura vacinal a nível de países, com análises
+#> longitudinal de cobertura vacinal a nível de municípios, com análises
 #> descritivas de tendência temporal.
 
 library(pacman)
