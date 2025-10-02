@@ -247,7 +247,7 @@ plot_mapa_estado <- function(df_state_mean, titulo, legenda = "Diferença (%)") 
 }
 
 # =========================================================
-# D) Seleção das colunas de diferenças (vêm da sua tabela municipal)
+# D) Seleção das colunas de diferenças 
 #     Use: tabela_coberturas_4anos_resumo
 #     (precisa conter: id_municipio, abbrev_state e as cols abaixo)
 # =========================================================
@@ -476,4 +476,5 @@ ggplot() +
   theme(plot.title = element_text(face = "bold", size = 13),
         legend.position = "right")
 
+#                 ~~~ Fim ~~~
 

@@ -61,7 +61,6 @@ criancas_0a4_por_municipio <- basedosdados::read_sql(
     pct_0a4 = if_else(pop_total > 0, 100 * pop_0a4 / pop_total, NA_real_)
   )
 
-# (Opcional) manter também um ID de 6 dígitos, se você usa esse padrão em outros bancos
 criancas_0a4_por_municipio <- criancas_0a4_por_municipio %>%
   mutate(id_municipio_6 = sub("^([0-9]{6}).*$", "\\1", id_municipio)) %>%
   relocate(id_municipio, id_municipio_6, id_municipio_nome, pop_total, pop_0a4, pct_0a4)
@@ -99,7 +98,6 @@ eleicoes <- read_csv2(
 ) |>
   clean_names() # nomes de colunas em snake_case
 
-# Se o arquivo tiver outras eleições/turnos, mantenha estes filtros:
 eleicoes_wide <- eleicoes %>%
   filter(ds_cargo == "Presidente",
          nr_turno %in% c(2, "2", "2º turno", "segundo turno", "2º TURNO"),
@@ -126,20 +124,15 @@ normalize_nome <- function(x) {
     rm_accent()
   }
 
-#------------------------------------------------------------
 # 1) CHAVE a partir do eleicoes_wide (já com votos_13 / votos_22)
 #    -> mantenho também total_validos / prop_13 / prop_22, se existirem
-#------------------------------------------------------------
 eleicoes_key <- eleicoes_wide %>%
   mutate(nm_municipio_norm = normalize_nome(nm_municipio)) %>%
   select(sg_uf, nm_municipio_norm, nm_municipio,
     matches("^votos_"), matches("^prop_"), total_validos) %>%
   distinct()
 
-#------------------------------------------------------------
-# 2) SUA TABELA MUNICIPAL (alvo do casamento)
-#    Ex.: outra_tbl com id_municipio, sg_uf, name_muni
-#------------------------------------------------------------
+# 2) Tabela municipal
 mun <- mun %>%
   mutate(nm_municipio_norm = normalize_nome(name_muni))
 
@@ -152,12 +145,6 @@ eleicoes_key <- eleicoes_wide %>%
     any_of(ex_cols)
   ) %>%
   distinct()
-
-# 2) SUA TABELA MUNICIPAL (mun) já tem:
-#    - code_muni (ID do município)
-#    - abbrev_state (UF)
-#    - name_muni (nome)
-#    - nm_municipio_norm (nome normalizado)  [já feito por você]
 
 # 3) JOIN EXATO por (UF + nome_normalizado)
 joined_exato <- mun %>%
@@ -252,7 +239,6 @@ final_match <- joined_exato %>%
 # |############################################|
 # '--------------------------------------------°
 
-# Defina a pasta (já está no seu setwd, mas deixei explícito)
 dir_path <- "/Users/alexandrepichilinga/Documents/projetos_outros/mlg_vacinacao_trabalho_final/raw/regressao"
 setwd(dir_path)
 
@@ -314,22 +300,17 @@ escolaridade1 <- escolaridade %>%
 # '--------------------------------------------°
 
 setwd("/Users/alexandrepichilinga/Documents/projetos_outros/mlg_vacinacao_trabalho_final/raw/regressao")
-# caminho do arquivo
 arq <- "estabelecimentos.csv"
 
 # 1) Descobrir a primeira linha "boa" (com vários ;)
 linhas <- readr::read_lines(arq, n_max = 200)  # olhe só o começo
 tem_ponto_virgula <- stringr::str_count(linhas, ";")
 
-# regra: a primeira linha com >= 3 ; provavelmente é o cabeçalho real
+# regra: a primeira linha com >= 3 
 linha_header <- which(tem_ponto_virgula >= 3)[1]
 if (is.na(linha_header)) stop("Não encontrei linha de cabeçalho com ';' no início do arquivo.")
 
 # 2) Ler o CSV a partir dessa linha
-#    - skip = linha_header - 1 (pula o que vem antes)
-#    - delim = ';'
-#    - locale Latin-1 para evitar '�'
-#    - NA extras (traços etc.)
 dados_brutos <- readr::read_delim(
   file   = arq,
   delim  = ";",
@@ -343,8 +324,8 @@ dados_brutos <- readr::read_delim(
 names(dados_brutos) <- janitor::make_clean_names(names(dados_brutos))
 
 # 4) Separar a coluna de município (ex.: "110001 ALTA FLORESTA D'OESTE")
-#    Ajuste o nome da coluna abaixo caso venha ligeiramente diferente (use names(dados_brutos) para conferir)
-col_muni <- names(dados_brutos)[1]  # normalmente a 1ª coluna é "município"
+#    Ajusta o nome da coluna abaixo caso venha ligeiramente diferente (use names(dados_brutos) para conferir)
+col_muni <- names(dados_brutos)[1]  
 dados <- dados_brutos %>%
   mutate(
     # extrai 6 primeiros dígitos como id
@@ -552,11 +533,9 @@ dados_modelo <- tabela_coberturas_4anos_resumo.2 %>%
   ) %>%
   drop_na()
 
-# Se ainda não estiver, garanta que 'faixa_estudos' é fator nas faixas que você criou
-# (ajuste os levels conforme seu código anterior)
 dados_modelo_ne <- dados_modelo %>%
   mutate(
-    faixa_estudos = factor(faixa_estudos)  # mantenha as faixas já criadas
+    faixa_estudos = factor(faixa_estudos)  
   ) %>%
   # opcional: remover linhas com NA nas variáveis usadas
   tidyr::drop_na(media_diff_21_15, prop_pobres, densidade_demografica,
@@ -565,8 +544,8 @@ dados_modelo_ne <- dados_modelo %>%
                  pct_pretos_pardos, pct_indigenas,
                  pct_0a4, pop_total_10mil)
 
-# Modelo com Nordeste como referência
-mod_ne <- lm(
+# Modelo 
+mod <- lm(
   media_diff_21_15 ~ prop_pobres + densidade_demografica +
     pessoas_por_estabelecimento_saude + faixa_estudos + pct_pretos_pardos + pct_indigenas +
     pct_0a4 + pop_total_10mil +
@@ -574,12 +553,12 @@ mod_ne <- lm(
   data = dados_modelo_ne
 )
 
-summary(mod_ne)
+summary(mod)
 # (opcional) Tabela enxuta
-broom::tidy(mod_ne) %>% arrange(p.value)
+broom::tidy(mod) %>% arrange(p.value)
 
 # Extrai coeficientes com IC 95%
-coefs <- broom::tidy(mod_ne, conf.int = TRUE)
+coefs <- broom::tidy(mod, conf.int = TRUE)
 
 # Remove intercepto para facilitar leitura
 coefs_plot <- coefs %>%
@@ -607,7 +586,7 @@ ggplot(coefs_plot, aes(x = estimate, y = reorder(term, estimate))) +
 # '--------------------------------------------°
 
 library(car)
-vif(mod_ne)                  # atenção se VIF > 5 (ou >10)
+vif(mod)                  # atenção se VIF > 5 (ou >10)
 
 cor.test(dados_modelo_ne$prop_pobres, dados_modelo_ne$prop_22_ex,
          use = "complete.obs", method = "pearson")
@@ -635,24 +614,18 @@ cor.test(dados_modelo_ne$prop_evangelicos, dados_modelo_ne$pct_pretos_pardos,
 # |############################################|
 # '--------------------------------------------°
 
-# ----------------------------
 # 1) Fórmulas
-# ----------------------------
 form1 <- media_diff_21_15 ~ densidade_demografica +
   pessoas_por_estabelecimento_saude + faixa_estudos + pct_indigenas +
   pct_0a4 + prop_22_ex + prop_rural + prop_evangelicos + factor(name_region)
 
 form2 <- update(form1, . ~ . + pct_pretos_pardos)
 
-# ----------------------------
 # 2) Modelos 1 e 2
-# ----------------------------
 mod1 <- lm(form1, data = dados_modelo)
 mod2 <- lm(form2, data = dados_modelo)
 
-# ----------------------------
 # 3) Identificar observações influentes
-# ----------------------------
 aug2 <- augment(mod2)  # usando modelo com pretos/pardos
 n <- nobs(mod2)
 p <- length(coef(mod2))
@@ -673,18 +646,14 @@ cat("Obs. influentes detectadas:", length(infl_idx), "\n")
 dados_sens <- dados_modelo[-infl_idx, , drop = FALSE]
 mod3 <- lm(form2, data = dados_sens)
 
-# ----------------------------
 # 4) Função tidy com EP robusto
-# ----------------------------
 tidy_hc3 <- function(m, label){
   broom::tidy(m, conf.int = TRUE, conf.level = 0.95,
               vcov = sandwich::vcovHC(m, type = "HC3")) %>%
     mutate(Modelo = label)
 }
 
-# ----------------------------
 # 5) Comparar coeficientes
-# ----------------------------
 tab_comp <- bind_rows(
   tidy_hc3(mod1, "Sem pretos/pardos"),
   tidy_hc3(mod2, "Com pretos/pardos"),
@@ -693,9 +662,7 @@ tab_comp <- bind_rows(
   filter(term != "(Intercept)")
 print(tab_comp, n = Inf)
 
-# ----------------------------
 # 6) Tabela final (para artigo)
-# ----------------------------
 # ---- Função auxiliar: EP robusto + estrelas ----
 tidy_hc3_stars <- function(model, model_label){
   broom::tidy(
@@ -775,9 +742,7 @@ message("Arquivos salvos:",
         "\n- tabela_modelo2_com_pretos_pardos.png",
         "\n- tabela_modelo3_com_pretos_pardos_sem_influentes.png")
 
-# ----------------------------
 # 7) Gráfico de coeficientes
-# ----------------------------
 ggplot(tab_comp,
        aes(x = estimate, y = term, xmin = conf.low, xmax = conf.high,
            color = Modelo)) +
@@ -843,11 +808,6 @@ plot_resid_fit <- function(m, title){
 p1 <- plot_resid_fit(mods[[1]], names(mods)[1])
 p2 <- plot_resid_fit(mods[[2]], names(mods)[2])
 p3 <- plot_resid_fit(mods[[3]], names(mods)[3])
-
-# Se tiver o patchwork instalado, você pode combinar assim:
-# install.packages("patchwork")
-# library(patchwork)
-# (p1 | p2 | p3)
 
 # Sem patchwork: imprima individualmente
 print(p1); print(p2); print(p3)
@@ -983,4 +943,5 @@ step_mod2 <- stepAIC(mod2, direction = "both", trace = FALSE)
 summary(step_mod2)
 oi
 teste 
+
 #                 ~~~ Fim ~~~
