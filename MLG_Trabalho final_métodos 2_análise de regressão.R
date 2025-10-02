@@ -2,8 +2,6 @@
 ###   Título: Regressão da cobertura vacinal (municípios)               ###
 ###########################################################################
 
-# Autor: Alexandre Silva Nogueira
-
 # Objetivo:
 #> Unificar bases de dados (DataSUS, TSE, IBGE etc.) em nível municipal
 #> e estimar modelos de regressão para explicar variação da cobertura

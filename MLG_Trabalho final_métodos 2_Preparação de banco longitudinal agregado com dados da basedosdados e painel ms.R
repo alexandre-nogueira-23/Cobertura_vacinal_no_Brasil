@@ -2,8 +2,6 @@
 ###   Título: Base longitudinal de cobertura vacinal (países)           ###
 ###########################################################################
 
-# Autor: Alexandre Silva Nogueira
-
 # Objetivo:
 #> Integrar dados do DataSUS e da Base dos Dados para criar uma base
 #> longitudinal de cobertura vacinal a nível de países, com análises

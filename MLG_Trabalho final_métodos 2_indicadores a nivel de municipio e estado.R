@@ -2,8 +2,6 @@
 ###   Título: Indicadores de cobertura vacinal (municípios e estados)   ###
 ###########################################################################
 
-# Autor: Alexandre Silva Nogueira
-
 # Objetivo:
 #> Construir indicadores padronizados de cobertura vacinal em municípios
 #> e estados e analisar a evolução temporal da cobertura por região.
